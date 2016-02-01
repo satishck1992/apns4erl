@@ -3,21 +3,21 @@ Apns4erl
 
 This lib is intended to allow you to write an APNs provider for Apple Push Notificaion services (APNs) in Erlang.
 
-Copyright (c) 2010 Inaka Labs SRL <support@inaka.net>, released under the MIT license
+This library has been modified to be a custom use case for ejabberd. And hence all the 
+configuration has been moved to ejabberd.yml.
+
+The module calling the connection has to supply the apns connection record.
+
+Released under the MIT license
 
 Contact Us
 ==========
-For **questions** or **general comments** regarding the use of Apns4erl, please use our public
-[hipchat room](http://inaka.net/hipchat).
 
-If you find any **bugs** or have a **problem** while using Apns4erl, please [open an issue](https://github.com/inaka/apns4erl/issues/new) in this repo (or a pull request :)).
-
-And you can check all of our open-source projects at [inaka.github.io](http://inaka.github.io)
 
 Example
 =======
 
-Using apns4erl is quite simple. First, setup something similar to this in your sys.config:
+Using apns4erl is quite simple. First, setup the following parameters in your ejabberd configuration:
 
 ```erlang
     {apns, [
@@ -44,10 +44,11 @@ Then, once you've started the apns application, you can connect to the APNS netw
       apns:connect(
         %% your connection identifier:
         my_connection_name,
-        %% called in case of a "hard" error:
-        fun ?MODULE:handle_apns_error/2,
-        %% called if the device uninstalled the application:
-        fun ?MODULE:handle_apns_delete_subscription/1
+        %%
+        %% error_fun is called in case of a "hard" error:
+        %% feedback_fun is called if the device uninstalled the application
+        %% apns_connection is a record which contains all the relevant data for connecting
+        connection_info#apns_connection{error_fun = fun ?MODULE:handle_apns_error/2, feedback_fun = fun ?MODULE:handle_apns_delete_subscription/1 }
       ).
 ```
 
