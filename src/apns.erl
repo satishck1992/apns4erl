@@ -12,13 +12,12 @@
 -behaviour(application).
 
 -export([start/0, stop/0]).
--export([connect/0, connect/1, connect/2, connect/3, disconnect/1]).
+-export([connect/2, disconnect/1]).
 -export([send_badge/3, send_message/2, send_message/3, send_message/4,
          send_message/5, send_message/6, send_message/7, send_message/8]).
 -export([send_content_available/2, send_content_available/3]).
 -export([estimate_available_bytes/1]).
 -export([message_id/0, expiry/1, timestamp/1]).
--export([default_connection/0]).
 -export([start/2, stop/1]).
 
 -type status() :: no_errors
@@ -66,11 +65,6 @@ start() ->
 stop() ->
   application:stop(apns).
 
-%% @doc Opens an unnamed connection using the default parameters
--spec connect() -> {ok, pid()} | {error, Reason::term()}.
-connect() ->
-  connect(default_connection()).
-
 %% ===================================================================
 %% Application callbacks
 %% ===================================================================
@@ -84,20 +78,6 @@ start(_StartType, _StartArgs) ->
 -spec stop([]) -> ok.
 stop([]) -> ok.
 
-%% @doc Opens an unnamed connection using the given feedback or error function
-%%      or using the given connection() parameters
-%%      or the name and default configuration if a name is given
--spec connect(atom() | string() | fun((string()) -> _) | connection()) ->
-  {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
-connect(Name) when is_atom(Name) ->
-  connect(Name, default_connection());
-connect(Connection) when is_record(Connection, apns_connection) ->
-  apns_sup:start_connection(Connection);
-connect(Fun) when is_function(Fun, 1) ->
-  connect((default_connection())#apns_connection{feedback_fun = Fun});
-connect(Fun) when is_function(Fun, 2) ->
-  connect((default_connection())#apns_connection{error_fun = Fun}).
-
 %% @doc Opens an connection named after the atom()
 %%      using the given feedback or error function
 %%      or using the given connection() parameters
@@ -105,26 +85,8 @@ connect(Fun) when is_function(Fun, 2) ->
               fun((string()) -> _) | connection()) ->
     {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
 connect(Name, Connection) when is_record(Connection, apns_connection) ->
-  apns_sup:start_connection(Name, Connection);
-connect(Name, Fun) when is_function(Fun, 1) ->
-  connect(Name, (default_connection())#apns_connection{feedback_fun = Fun});
-connect(Name, Fun) when is_function(Fun, 2) ->
-  connect(Name, (default_connection())#apns_connection{error_fun = Fun});
-connect(ErrorFun, FeedbackFun) when is_function(ErrorFun, 2) andalso
-                                    is_function(FeedbackFun, 1) ->
-  connect((default_connection())#apns_connection{error_fun = ErrorFun,
-                                                 feedback_fun = FeedbackFun}).
+  apns_sup:start_connection(Name, Connection).
 
-
-%% @doc Opens an connection named after the atom()
-%%      using the given feedback and error functions
--spec connect(atom() | string(),
-    fun((binary(), apns:status()) -> stop | _), fun((string()) -> _)) ->
-    {ok, pid()} | {error, {already_started, pid()}} | {error, Reason::term()}.
-connect(Name, ErrorFun, FeedbackFun) ->
-  connect(
-    Name, (default_connection())#apns_connection{error_fun    = ErrorFun,
-                                                 feedback_fun = FeedbackFun}).
 
 %% @doc Closes an open connection
 -spec disconnect(conn_id()) -> ok.
@@ -258,40 +220,3 @@ get_env(K, Def) ->
     _ -> Def
   end.
 
--spec default_connection() -> connection().
-default_connection() ->
-  DefaultConn = #apns_connection{},
-  DefaultConn#apns_connection
-    { apple_host =
-        get_env(apple_host, DefaultConn#apns_connection.apple_host)
-    , apple_port =
-        get_env(apple_port, DefaultConn#apns_connection.apple_port)
-    , key_file =
-        get_env(key_file, DefaultConn#apns_connection.key_file)
-    , cert_file =
-        get_env(cert_file, DefaultConn#apns_connection.cert_file)
-    , cert_password =
-        get_env(cert_password, DefaultConn#apns_connection.cert_password)
-    , timeout =
-        get_env(timeout, DefaultConn#apns_connection.timeout)
-    , error_fun =
-        case get_env(error_fun, DefaultConn#apns_connection.error_fun) of
-          {M, F} -> fun(I, S) -> M:F(I, S) end;
-          Other -> Other
-        end
-    , feedback_timeout =
-        get_env(feedback_timeout, DefaultConn#apns_connection.feedback_timeout)
-    , feedback_fun =
-        case get_env(feedback_fun, DefaultConn#apns_connection.feedback_fun) of
-          {M, F} -> fun(T) -> M:F(T) end;
-          Other -> Other
-        end
-    , feedback_host =
-        get_env(feedback_host, DefaultConn#apns_connection.feedback_host)
-    , feedback_port =
-        get_env(feedback_port, DefaultConn#apns_connection.feedback_port)
-    , expires_conn =
-        get_env(expires_conn,  DefaultConn#apns_connection.expires_conn)
-    , extra_ssl_opts =
-        get_env(extra_ssl_opts,  DefaultConn#apns_connection.extra_ssl_opts)
-    }.
